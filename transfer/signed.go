@@ -57,7 +57,7 @@ func ParseSigned(r *http.Request, data interface{}, publicKeyPath string) (Signe
 	req.Data = data
 	err := json.NewDecoder(r.Body).Decode(&req)
 
-	verified := VerifyMessage([]byte(fmt.Sprintf("%v", req.Data)), req.Signature, publicKey)
+	verified := VerifyMessage(fmt.Sprintf("%v", req.Data), req.UUID, req.Signature, publicKey)
 	if verified != true {
 		err = errors.New("Verification failed")
 		req = SignedRequest{}
@@ -78,10 +78,11 @@ func ReadPublicKey(keyFilePath string) *rsa.PublicKey {
 	return keyInterface
 }
 
-func VerifyMessage(message []byte, signature string, publicKey *rsa.PublicKey) bool {
+func VerifyMessage(message string, uuid string, signature string, publicKey *rsa.PublicKey) bool {
+	hashed := hash(message + uuid)
 	sig := hash(signature)
 
-	err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, message[:], sig[:])
+	err := rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hashed[:], sig[:])
 	return err != nil
 }
 
@@ -114,7 +115,7 @@ func ReadPrivateKey(keyFilePath string) *rsa.PrivateKey {
 }
 
 func SignMessage(message string, uuid string, privateKey *rsa.PrivateKey) []byte {
-	hashed := hash(message)
+	hashed := hash(message + uuid)
 
 	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, crypto.SHA256, hashed[:])
 	panicOnError(err)
